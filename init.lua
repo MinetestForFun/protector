@@ -357,7 +357,7 @@ end
 --   (this parameter and/or its properties are optional;
 --    values shown below are default values if said property is ommitted):
 -- {
---   radius = 5,
+--   radius = protector.radius,
 --   displaycolor = "D619FF"
 -- }
 function protector.register_protector(name, nodedef, protdef)
@@ -380,7 +380,7 @@ function protector.register_protector(name, nodedef, protdef)
 	end
 
 	local pd = copy(protdef)
-	pd.radius = pd.radius or 5
+	pd.radius = pd.radius or protector.radius
 	pd.displaycolor = pd.displaycolor or "D619FF"
 	register_display_pair(pd.displaycolor, pd.radius)
 
@@ -460,7 +460,7 @@ protector.register_protector("protect", {
 })
 
 minetest.register_craft({
-	output = "protector:protect 4",
+	output = "protector:protect " .. (minetest.setting_get("protector_protect_craft_count") or "1"),
 	recipe = {
 		{"default:stone", "default:stone", "default:stone"},
 		{"default:stone", "default:steel_ingot", "default:stone"},
@@ -542,7 +542,7 @@ protector.register_protector("protect2", {
 })
 
 minetest.register_craft({
-	output = "protector:protect2 4",
+	output = "protector:protect2 " .. (minetest.setting_get("protector_protect2_craft_count") or "1"),
 	recipe = {
 		{"default:stone", "default:stone", "default:stone"},
 		{"default:stone", "default:copper_ingot", "default:stone"},
