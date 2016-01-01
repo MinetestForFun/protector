@@ -273,9 +273,171 @@ function protector.check_overlap(itemstack, placer, pointed_thing)
 
 end
 
+--= Protector registering API
+
+local display_pairs = {}
+
+local function register_display_pair(color, radius)
+	local pairname = color .. "_" .. radius
+	if display_pairs[pairname] then
+		return
+	end
+	local pair = {
+		node = "protector:display_node_" .. pairname,
+		entity = "protector:display_" .. pairname
+	}
+
+	-- Display-zone node, Do NOT place the display as a node,
+	-- it is made to be used as an entity (see below)
+	local x = radius
+	minetest.register_node(":" .. pair.node, {
+		tiles = {"protector_display_mask.png^[colorize:#" .. color },
+		use_texture_alpha = true,
+		walkable = false,
+		drawtype = "nodebox",
+		node_box = {
+			type = "fixed",
+			fixed = {
+				-- sides
+				{-(x+.55), -(x+.55), -(x+.55), -(x+.45), (x+.55), (x+.55)},
+				{-(x+.55), -(x+.55), (x+.45), (x+.55), (x+.55), (x+.55)},
+				{(x+.45), -(x+.55), -(x+.55), (x+.55), (x+.55), (x+.55)},
+				{-(x+.55), -(x+.55), -(x+.55), (x+.55), (x+.55), -(x+.45)},
+				-- top
+				{-(x+.55), (x+.45), -(x+.55), (x+.55), (x+.55), (x+.55)},
+				-- bottom
+				{-(x+.55), -(x+.55), -(x+.55), (x+.55), -(x+.45), (x+.55)},
+				-- middle (surround protector)
+				{-.55,-.55,-.55, .55,.55,.55},
+			},
+		},
+		selection_box = {
+			type = "regular",
+		},
+		paramtype = "light",
+		groups = {dig_immediate = 3, not_in_creative_inventory = 1},
+		drop = ""
+	})
+
+	-- Display entity shown when protector node is punched
+	minetest.register_entity(":" .. pair.entity, {
+		physical = false,
+		collisionbox = {0, 0, 0, 0, 0, 0},
+		visual = "wielditem",
+		-- wielditem seems to be scaled to 1.5 times original node size
+		visual_size = {x = 1.0 / 1.5, y = 1.0 / 1.5},
+		textures = {pair.node},
+		timer = 0,
+
+		on_activate = function(self, staticdata)
+
+			-- Xanadu server only
+			if mobs and mobs.entity and mobs.entity == false then
+				self.object:remove()
+			end
+		end,
+
+		on_step = function(self, dtime)
+
+			self.timer = self.timer + dtime
+
+			if self.timer > 5 then
+				self.object:remove()
+			end
+		end
+	})
+
+	display_pairs[pairname] = true
+end
+
+-- Registers a protector node.
+-- "name" is the node name, without mod namespace
+-- "nodedef" is a table of node properties passed to minetest.register_node
+-- "protdef" is a table of protector properties, in the following format
+--   (this parameter and/or its properties are optional;
+--    values shown below are default values if said property is ommitted):
+-- {
+--   radius = 5,
+--   displaycolor = "D619FF"
+-- }
+function protector.register_protector(name, nodedef, protdef)
+	local copy = function(t)
+		local u = {}
+		if type(t) == 'table' then
+			for k, v in pairs(t) do u[k] = v end
+		end
+		return u
+	end
+	local mkcallback = function(fn1, fn2)
+		if fn2 then
+			return function(...)
+				fn1(...)
+				fn2(...)
+			end
+		else
+			return fn1
+		end
+	end
+
+	local pd = copy(protdef)
+	pd.radius = pd.radius or 5
+	pd.displaycolor = pd.displaycolor or "D619FF"
+	register_display_pair(pd.displaycolor, pd.radius)
+
+	local nd = copy(nodedef)
+	nd.on_place = mkcallback(protector.check_overlap, nd.on_place)
+
+	nd.after_place_node = mkcallback(function(pos, placer)
+
+		local meta = minetest.get_meta(pos)
+
+		meta:set_string("owner", placer:get_player_name() or "")
+		meta:set_string("infotext", "Protection (owned by " .. meta:get_string("owner") .. ")")
+		meta:set_string("members", "")
+	end, nd.after_place_node)
+
+	nd.on_use = mkcallback(function(itemstack, user, pointed_thing)
+
+		if pointed_thing.type ~= "node" then
+			return
+		end
+
+		protector.can_dig(pd.radius, pointed_thing.under, user:get_player_name(), false, 2)
+	end, nd.on_use)
+
+	nd.on_rightclick = mkcallback(function(pos, node, clicker, itemstack)
+
+		local meta = minetest.get_meta(pos)
+
+		if protector.can_dig(1, pos, clicker:get_player_name(), true, 1) then
+
+			minetest.show_formspec(clicker:get_player_name(), 
+			"protector:node_" .. minetest.pos_to_string(pos), protector.generate_formspec(meta))
+		end
+	end, nd.on_rightclick)
+
+	nd.on_punch = mkcallback(function(pos, node, puncher)
+
+		if not protector.can_dig(1, pos, puncher:get_player_name(), true, 1) then
+			return
+		end
+
+		minetest.add_entity(pos, "protector:display_" .. pd.displaycolor .. "_" .. pd.radius)
+	end, nd.on_punch)
+
+	nd.can_dig = mkcallback(function(pos, player)
+
+		return protector.can_dig(1, pos, player:get_player_name(), true, 1)
+	end, nd.can_dig)
+
+	nd.on_blast = mkcallback(function() end, nd.on_blast)
+
+	minetest.register_node(":protector:" .. name, nd)
+end
+
 --= Protection Block
 
-minetest.register_node("protector:protect", {
+protector.register_protector("protect", {
 	description = "Protection Block",
 	drawtype = "nodebox",
 	tiles = {
@@ -294,53 +456,7 @@ minetest.register_node("protector:protect", {
 		fixed = {
 			{-0.5 ,-0.5, -0.5, 0.5, 0.5, 0.5},
 		}
-	},
-
-	on_place = protector.check_overlap,
-
-	after_place_node = function(pos, placer)
-
-		local meta = minetest.get_meta(pos)
-
-		meta:set_string("owner", placer:get_player_name() or "")
-		meta:set_string("infotext", "Protection (owned by " .. meta:get_string("owner") .. ")")
-		meta:set_string("members", "")
-	end,
-
-	on_use = function(itemstack, user, pointed_thing)
-
-		if pointed_thing.type ~= "node" then
-			return
-		end
-
-		protector.can_dig(protector.radius, pointed_thing.under, user:get_player_name(), false, 2)
-	end,
-
-	on_rightclick = function(pos, node, clicker, itemstack)
-
-		local meta = minetest.get_meta(pos)
-
-		if protector.can_dig(1, pos,clicker:get_player_name(), true, 1) then
-			minetest.show_formspec(clicker:get_player_name(), 
-			"protector:node_" .. minetest.pos_to_string(pos), protector.generate_formspec(meta))
-		end
-	end,
-
-	on_punch = function(pos, node, puncher)
-
-		if not protector.can_dig(1, pos, puncher:get_player_name(), true, 1) then
-			return
-		end
-
-		minetest.add_entity(pos, "protector:display")
-	end,
-
-	can_dig = function(pos, player)
-
-		return protector.can_dig(1, pos, player:get_player_name(), true, 1)
-	end,
-
-	on_blast = function() end,
+	}
 })
 
 minetest.register_craft({
@@ -354,7 +470,7 @@ minetest.register_craft({
 
 --= Protection Logo
 
-minetest.register_node("protector:protect2", {
+protector.register_protector("protect2", {
 	description = "Protection Logo",
 	tiles = {"protector_logo.png"},
 	wield_image = "protector_logo.png",
@@ -422,6 +538,7 @@ minetest.register_node("protector:protect2", {
 	end,
 
 	on_blast = function() end,
+
 })
 
 minetest.register_craft({
@@ -468,68 +585,6 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 	end
 
 end)
-
--- Display entity shown when protector node is punched
-
-minetest.register_entity("protector:display", {
-	physical = false,
-	collisionbox = {0, 0, 0, 0, 0, 0},
-	visual = "wielditem",
-	-- wielditem seems to be scaled to 1.5 times original node size
-	visual_size = {x = 1.0 / 1.5, y = 1.0 / 1.5},
-	textures = {"protector:display_node"},
-	timer = 0,
-
-	on_activate = function(self, staticdata)
-
-		-- Xanadu server only
-		if mobs and mobs.entity and mobs.entity == false then
-			self.object:remove()
-		end
-	end,
-
-	on_step = function(self, dtime)
-
-		self.timer = self.timer + dtime
-
-		if self.timer > 5 then
-			self.object:remove()
-		end
-	end,
-})
-
--- Display-zone node, Do NOT place the display as a node,
--- it is made to be used as an entity (see above)
-
-local x = protector.radius
-minetest.register_node("protector:display_node", {
-	tiles = {"protector_display.png"},
-	use_texture_alpha = true,
-	walkable = false,
-	drawtype = "nodebox",
-	node_box = {
-		type = "fixed",
-		fixed = {
-			-- sides
-			{-(x+.55), -(x+.55), -(x+.55), -(x+.45), (x+.55), (x+.55)},
-			{-(x+.55), -(x+.55), (x+.45), (x+.55), (x+.55), (x+.55)},
-			{(x+.45), -(x+.55), -(x+.55), (x+.55), (x+.55), (x+.55)},
-			{-(x+.55), -(x+.55), -(x+.55), (x+.55), (x+.55), -(x+.45)},
-			-- top
-			{-(x+.55), (x+.45), -(x+.55), (x+.55), (x+.55), (x+.55)},
-			-- bottom
-			{-(x+.55), -(x+.55), -(x+.55), (x+.55), -(x+.45), (x+.55)},
-			-- middle (surround protector)
-			{-.55,-.55,-.55, .55,.55,.55},
-		},
-	},
-	selection_box = {
-		type = "regular",
-	},
-	paramtype = "light",
-	groups = {dig_immediate = 3, not_in_creative_inventory = 1},
-	drop = "",
-})
 
 dofile(minetest.get_modpath("protector") .. "/doors_chest.lua")
 dofile(minetest.get_modpath("protector") .. "/pvp.lua")
