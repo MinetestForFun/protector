@@ -460,7 +460,7 @@ protector.register_protector("protect", {
 })
 
 minetest.register_craft({
-	output = "protector:protect",
+	output = "protector:protect 4",
 	recipe = {
 		{"default:stone", "default:stone", "default:stone"},
 		{"default:stone", "default:steel_ingot", "default:stone"},
@@ -542,7 +542,7 @@ protector.register_protector("protect2", {
 })
 
 minetest.register_craft({
-	output = "protector:protect2",
+	output = "protector:protect2 4",
 	recipe = {
 		{"default:stone", "default:stone", "default:stone"},
 		{"default:stone", "default:copper_ingot", "default:stone"},
