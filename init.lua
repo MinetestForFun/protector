@@ -6,6 +6,10 @@ protector.radius = (tonumber(minetest.setting_get("protector_radius")) or 5)
 protector.drop = minetest.setting_getbool("protector_drop") or false
 protector.hurt = (tonumber(minetest.setting_get("protector_hurt")) or 0)
 
+protector.registered_protectors = {}
+protector.registered_protectors_names = {}
+protector.max_registered_radius = protector.radius
+
 protector.get_member_list = function(meta)
 
 	return meta:get_string("members"):split(" ")
@@ -132,60 +136,68 @@ protector.can_dig = function(r, pos, digger, onlyowner, infolevel)
 	local positions = minetest.find_nodes_in_area(
 		{x = pos.x - r, y = pos.y - r, z = pos.z - r},
 		{x = pos.x + r, y = pos.y + r, z = pos.z + r},
-		{"protector:protect", "protector:protect2"})
+		protector.registered_protectors_names)
 
 	local meta, owner, members
+	local basepos = pos
 
 	for _, pos in pairs(positions) do
 
-		meta = minetest.get_meta(pos)
-		owner = meta:get_string("owner")
-		members = meta:get_string("members")
+		local protrad = protector.registered_protectors[minetest.get_node(pos).name]
+		if math.abs(basepos.x-pos.x) <= protrad and
+		   math.abs(basepos.y-pos.y) <= protrad and
+		   math.abs(basepos.z-pos.z) <= protrad then -- Check if distance if >= that protector's radius
 
-		if owner ~= digger then 
+			meta = minetest.get_meta(pos)
+			owner = meta:get_string("owner")
+			members = meta:get_string("members")
 
-			if onlyowner
-			or not protector.is_member(meta, digger) then
+			if owner ~= digger then 
 
-				if infolevel == 1 then
+				if onlyowner
+				or not protector.is_member(meta, digger) then
 
-					minetest.chat_send_player(digger,
-					"This area is owned by " .. owner .. " !")
-
-				elseif infolevel == 2 then
-
-					minetest.chat_send_player(digger,
-					"This area is owned by " .. owner .. ".")
-
-					minetest.chat_send_player(digger,
-					"Protection located at: " .. minetest.pos_to_string(pos))
-
-					if members ~= "" then
+					if infolevel == 1 then
 
 						minetest.chat_send_player(digger,
-						"Members: " .. members .. ".")
+						"This area is owned by " .. owner .. " !")
+
+					elseif infolevel == 2 then
+
+						minetest.chat_send_player(digger,
+						"This area is owned by " .. owner .. ".")
+
+						minetest.chat_send_player(digger,
+						"Protection located at: " .. minetest.pos_to_string(pos))
+
+						if members ~= "" then
+
+							minetest.chat_send_player(digger,
+							"Members: " .. members .. ".")
+						end
 					end
+
+					return false
+				end
+			end
+
+			if infolevel == 2 then
+
+				minetest.chat_send_player(digger,
+				"This area is owned by " .. owner .. ".")
+
+				minetest.chat_send_player(digger,
+				"Protection located at: " .. minetest.pos_to_string(pos))
+
+				if members ~= "" then
+
+					minetest.chat_send_player(digger,
+					"Members: " .. members .. ".")
 				end
 
 				return false
 			end
-		end
 
-		if infolevel == 2 then
-
-			minetest.chat_send_player(digger,
-			"This area is owned by " .. owner .. ".")
-
-			minetest.chat_send_player(digger,
-			"Protection located at: " .. minetest.pos_to_string(pos))
-
-			if members ~= "" then
-
-				minetest.chat_send_player(digger,
-				"Members: " .. members .. ".")
-			end
-
-			return false
 		end
 
 	end
@@ -210,7 +222,7 @@ protector.old_is_protected = minetest.is_protected
 
 function minetest.is_protected(pos, digger)
 
-	if not protector.can_dig(protector.radius, pos, digger, false, 1) then
+	if not protector.can_dig(protector.max_registered_radius, pos, digger, false, 1) then
 
 		local player = minetest.get_player_by_name(digger)
 
@@ -260,11 +272,13 @@ function protector.check_overlap(itemstack, placer, pointed_thing)
 		return itemstack
 	end
 
-	if not protector.can_dig(protector.radius * 2, pointed_thing.above,
+	if not protector.can_dig(protector.max_registered_radius * 2, pointed_thing.under,
+	placer:get_player_name(), true, 3)
+	or not protector.can_dig(protector.max_registered_radius * 2, pointed_thing.above,
 	placer:get_player_name(), true, 3) then
 
 		minetest.chat_send_player(placer:get_player_name(),
-			"Overlaps into above players protected area")
+			"Overlaps into above player's protected area")
 
 		return
 	end
@@ -433,6 +447,9 @@ function protector.register_protector(name, nodedef, protdef)
 	nd.on_blast = mkcallback(function() end, nd.on_blast)
 
 	minetest.register_node(":protector:" .. name, nd)
+	protector.registered_protectors["protector:" .. name] = pd.radius
+	table.insert(protector.registered_protectors_names, "protector:" .. name)
+	protector.max_registered_radius = math.max(protector.max_registered_radius, pd.radius)
 end
 
 --= Protection Block
