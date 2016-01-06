@@ -115,7 +115,7 @@ end
 -- 2 for "This area is owned by <owner>.
 -- 3 for checking protector overlaps
 
-protector.can_dig = function(r, pos, digger, onlyowner, infolevel)
+protector.can_dig = function(r, pos, digger, onlyowner, infolevel, addradius)
 
 	if not digger
 	or not pos then
@@ -143,10 +143,12 @@ protector.can_dig = function(r, pos, digger, onlyowner, infolevel)
 
 	for _, pos in pairs(positions) do
 
-		local protrad = protector.registered_protectors[minetest.get_node(pos).name]
+		local protrad = (protector.registered_protectors[minetest.get_node(pos).name] or 0)
+		  + (addradius or 0)
+		minetest.log("error", minetest.get_node(pos).name .. " " .. tostring(protrad))
 		if math.abs(basepos.x-pos.x) <= protrad and
 		   math.abs(basepos.y-pos.y) <= protrad and
-		   math.abs(basepos.z-pos.z) <= protrad then -- Check if distance if >= that protector's radius
+		   math.abs(basepos.z-pos.z) <= protrad then -- Check if distance if <= that protector's radius
 
 			meta = minetest.get_meta(pos)
 			owner = meta:get_string("owner")
@@ -272,10 +274,12 @@ function protector.check_overlap(itemstack, placer, pointed_thing)
 		return itemstack
 	end
 
+	local protradius = protector.registered_protectors[itemstack:get_name()]-1 or 0
+
 	if not protector.can_dig(protector.max_registered_radius * 2, pointed_thing.under,
-	placer:get_player_name(), true, 3)
+	placer:get_player_name(), true, 3, protradius)
 	or not protector.can_dig(protector.max_registered_radius * 2, pointed_thing.above,
-	placer:get_player_name(), true, 3) then
+	placer:get_player_name(), true, 3, protradius) then
 
 		minetest.chat_send_player(placer:get_player_name(),
 			"Overlaps into above player's protected area")
@@ -416,7 +420,7 @@ function protector.register_protector(name, nodedef, protdef)
 			return
 		end
 
-		protector.can_dig(pd.radius, pointed_thing.under, user:get_player_name(), false, 2)
+		protector.can_dig(protector.max_registered_radius, pointed_thing.under, user:get_player_name(), false, 2)
 	end, nd.on_use)
 
 	nd.on_rightclick = mkcallback(function(pos, node, clicker, itemstack)
