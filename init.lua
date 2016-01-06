@@ -145,7 +145,6 @@ protector.can_dig = function(r, pos, digger, onlyowner, infolevel, addradius)
 
 		local protrad = (protector.registered_protectors[minetest.get_node(pos).name] or 0)
 		  + (addradius or 0)
-		minetest.log("error", minetest.get_node(pos).name .. " " .. tostring(protrad))
 		if math.abs(basepos.x-pos.x) <= protrad and
 		   math.abs(basepos.y-pos.y) <= protrad and
 		   math.abs(basepos.z-pos.z) <= protrad then -- Check if distance if <= that protector's radius
