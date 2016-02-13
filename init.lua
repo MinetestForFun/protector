@@ -510,55 +510,7 @@ protector.register_protector("protect2", {
 		wall_bottom = {-0.375, -0.5, -0.5, 0.375, -0.4375, 0.5},
 		wall_side   = {-0.5, -0.5, -0.375, -0.4375, 0.5, 0.375},
 	},
-	selection_box = {type = "wallmounted"},
-
-	on_place = protector.check_overlap,
-
-	after_place_node = function(pos, placer)
-
-		local meta = minetest.get_meta(pos)
-
-		meta:set_string("owner", placer:get_player_name() or "")
-		meta:set_string("infotext", "Protection (owned by " .. meta:get_string("owner") .. ")")
-		meta:set_string("members", "")
-	end,
-
-	on_use = function(itemstack, user, pointed_thing)
-
-		if pointed_thing.type ~= "node" then
-			return
-		end
-
-		protector.can_dig(protector.radius, pointed_thing.under, user:get_player_name(), false, 2)
-	end,
-
-	on_rightclick = function(pos, node, clicker, itemstack)
-
-		local meta = minetest.get_meta(pos)
-
-		if protector.can_dig(1, pos, clicker:get_player_name(), true, 1) then
-
-			minetest.show_formspec(clicker:get_player_name(), 
-			"protector:node_" .. minetest.pos_to_string(pos), protector.generate_formspec(meta))
-		end
-	end,
-
-	on_punch = function(pos, node, puncher)
-
-		if not protector.can_dig(1, pos, puncher:get_player_name(), true, 1) then
-			return
-		end
-
-		minetest.add_entity(pos, "protector:display")
-	end,
-
-	can_dig = function(pos, player)
-
-		return protector.can_dig(1, pos, player:get_player_name(), true, 1)
-	end,
-
-	on_blast = function() end,
-
+	selection_box = {type = "wallmounted"}
 })
 
 minetest.register_craft({
