@@ -349,7 +349,7 @@ local function register_display_pair(color, radius)
 		on_activate = function(self, staticdata)
 
 			-- Xanadu server only
-			if mobs and mobs.entity and mobs.entity == false then
+			if rawget(_G, "mobs") and mobs.entity and mobs.entity == false then
 				self.object:remove()
 			end
 		end,
