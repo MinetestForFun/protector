@@ -1,3 +1,4 @@
+
 minetest.register_privilege("delprotect","Ignore player protection")
 
 protector = {}
@@ -65,29 +66,31 @@ end
 protector.generate_formspec = function(meta)
 
 	local formspec = "size[8,7]"
-		..default.gui_bg..default.gui_bg_img..default.gui_slots
-		.."label[2.5,0;-- Protector interface --]"
-		.."label[0,1;PUNCH node to show protected area or USE for area check]"
-		.."label[0,2;Members: (type player name then press Enter to add)]"
+		.. default.gui_bg
+		.. default.gui_bg_img
+		.. default.gui_slots
+		.. "label[2.5,0;-- Protector interface --]"
+		.. "label[0,1;PUNCH node to show protected area or USE for area check]"
+		.. "label[0,2;Members:]"
 		.. "button_exit[2.5,6.2;3,0.5;close_me;Close]"
 
 	local members = protector.get_member_list(meta)
 	local npp = 12 -- max users added onto protector list
 	local i = 0
 
-	for _, member in pairs(members) do
+	for n = 1, #members do
 
 		if i < npp then
 
 			-- show username
 			formspec = formspec .. "button[" .. (i % 4 * 2)
 			.. "," .. math.floor(i / 4 + 3)
-			.. ";1.5,.5;protector_member;" .. member .. "]"
+			.. ";1.5,.5;protector_member;" .. members[n] .. "]"
 
 			-- username remove button
 			.. "button[" .. (i % 4 * 2 + 1.25) .. ","
 			.. math.floor(i / 4 + 3)
-			.. ";.75,.5;protector_del_member_" .. member .. ";X]"
+			.. ";.75,.5;protector_del_member_" .. members[n] .. ";X]"
 		end
 
 		i = i + 1
@@ -124,7 +127,8 @@ protector.can_dig = function(r, pos, digger, onlyowner, infolevel, addradius)
 
 	-- Delprotect privileged users can override protections
 
-	if minetest.check_player_privs(digger, {delprotect = true})
+	if ( minetest.check_player_privs(digger, {delprotect = true})
+	or minetest.check_player_privs(digger, {protection_bypass = true}) )
 	and infolevel == 1 then
 		return true
 	end
@@ -133,79 +137,78 @@ protector.can_dig = function(r, pos, digger, onlyowner, infolevel, addradius)
 
 	-- Find the protector nodes
 
-	local positions = minetest.find_nodes_in_area(
+	local basepos = pos
+	local pos = minetest.find_nodes_in_area(
 		{x = pos.x - r, y = pos.y - r, z = pos.z - r},
 		{x = pos.x + r, y = pos.y + r, z = pos.z + r},
 		protector.registered_protectors_names)
 
 	local meta, owner, members
-	local basepos = pos
 
-	for _, pos in pairs(positions) do
+	for n = 1, #pos do
 
-		local protrad = (protector.registered_protectors[minetest.get_node(pos).name] or 0)
+		local protrad = (protector.registered_protectors[minetest.get_node(pos[n]).name] or 0)
 		  + (addradius or 0)
-		if math.abs(basepos.x-pos.x) <= protrad and
-		   math.abs(basepos.y-pos.y) <= protrad and
-		   math.abs(basepos.z-pos.z) <= protrad then -- Check if distance if <= that protector's radius
+		if math.abs(basepos.x-pos[n].x) <= protrad and
+		   math.abs(basepos.y-pos[n].y) <= protrad and
+		   math.abs(basepos.z-pos[n].z) <= protrad then -- Check if distance if <= that protector's radius
 
-			meta = minetest.get_meta(pos)
-			owner = meta:get_string("owner")
-			members = meta:get_string("members")
+		meta = minetest.get_meta(pos[n])
+		owner = meta:get_string("owner") or ""
+		members = meta:get_string("members") or ""
 
-			if owner ~= digger then 
+		if owner ~= digger then
 
-				if onlyowner
-				or not protector.is_member(meta, digger) then
+			if onlyowner
+			or not protector.is_member(meta, digger) then
 
-					if infolevel == 1 then
-
-						minetest.chat_send_player(digger,
-						"This area is owned by " .. owner .. " !")
-
-					elseif infolevel == 2 then
-
-						minetest.chat_send_player(digger,
-						"This area is owned by " .. owner .. ".")
-
-						minetest.chat_send_player(digger,
-						"Protection located at: " .. minetest.pos_to_string(pos))
-
-						if members ~= "" then
-
-							minetest.chat_send_player(digger,
-							"Members: " .. members .. ".")
-						end
-					end
-
-					return false
-				end
-			end
-
-			if infolevel == 2 then
-
-				minetest.chat_send_player(digger,
-				"This area is owned by " .. owner .. ".")
-
-				minetest.chat_send_player(digger,
-				"Protection located at: " .. minetest.pos_to_string(pos))
-
-				if members ~= "" then
+				if infolevel == 1 then
 
 					minetest.chat_send_player(digger,
-					"Members: " .. members .. ".")
+					"This area is owned by " .. owner .. "!")
+
+				elseif infolevel == 2 then
+
+					minetest.chat_send_player(digger,
+					"This area is owned by " .. owner .. ".")
+
+					minetest.chat_send_player(digger,
+					"Protection located at: " .. minetest.pos_to_string(pos[n]))
+
+					if members ~= "" then
+
+						minetest.chat_send_player(digger,
+						"Members: " .. members .. ".")
+					end
 				end
 
 				return false
 			end
+		end
+		end
 
+		if infolevel == 2 then
+
+			minetest.chat_send_player(digger,
+			"This area is owned by " .. owner .. ".")
+
+			minetest.chat_send_player(digger,
+			"Protection located at: " .. minetest.pos_to_string(pos[n]))
+
+			if members ~= "" then
+
+				minetest.chat_send_player(digger,
+				"Members: " .. members .. ".")
+			end
+
+			return false
 		end
 
 	end
 
 	if infolevel == 2 then
 
-		if #positions < 1 then
+		if #pos < 1 then
 
 			minetest.chat_send_player(digger,
 			"This area is not protected.")
@@ -251,7 +254,9 @@ function minetest.is_protected(pos, digger)
 
 					-- drop stack
 					local obj = minetest.add_item(player:getpos(), sta)
-					obj:setvelocity({x = 0, y = 5, z = 0})
+					if obj then
+						obj:setvelocity({x = 0, y = 5, z = 0})
+					end
 				end)
 
 			end
@@ -426,8 +431,8 @@ function protector.register_protector(name, nodedef, protdef)
 
 		local meta = minetest.get_meta(pos)
 
-		if protector.can_dig(1, pos, clicker:get_player_name(), true, 1) then
-
+		if meta
+		and protector.can_dig(1, pos,clicker:get_player_name(), true, 1) then
 			minetest.show_formspec(clicker:get_player_name(), 
 			"protector:node_" .. minetest.pos_to_string(pos), protector.generate_formspec(meta))
 		end
@@ -435,7 +440,7 @@ function protector.register_protector(name, nodedef, protdef)
 
 	nd.on_punch = mkcallback(function(pos, node, puncher)
 
-		if not protector.can_dig(1, pos, puncher:get_player_name(), true, 1) then
+		if minetest.is_protected(pos, puncher:get_player_name()) then
 			return
 		end
 
