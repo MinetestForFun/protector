@@ -190,7 +190,7 @@ protector.can_dig = function(r, pos, digger, onlyowner, infolevel, addradius)
 		if infolevel == 2 then
 
 			minetest.chat_send_player(digger,
-			"This area is owned by " .. owner .. ".")
+			"This area is owned by " .. (owner or "nobody") .. ".")
 
 			minetest.chat_send_player(digger,
 			"Protection located at: " .. minetest.pos_to_string(pos[n]))
