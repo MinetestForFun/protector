@@ -185,7 +185,7 @@ protector.can_dig = function(r, pos, digger, onlyowner, infolevel, addradius)
 				return false
 			end
 		end
-		end
+
 
 		if infolevel == 2 then
 
@@ -203,7 +203,7 @@ protector.can_dig = function(r, pos, digger, onlyowner, infolevel, addradius)
 
 			return false
 		end
-
+		end
 	end
 
 	if infolevel == 2 then
