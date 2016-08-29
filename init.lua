@@ -567,4 +567,28 @@ dofile(minetest.get_modpath("protector") .. "/doors_chest.lua")
 dofile(minetest.get_modpath("protector") .. "/pvp.lua")
 dofile(minetest.get_modpath("protector") .. "/admin.lua")
 
+-- GUI Toggler for delprotect
+-- Requires Unified Inventory to be loaded
+
+if minetest.get_modpath("unified_inventory") then
+	unified_inventory.register_button("delprotect", {
+		type = "image",
+		image = "protector_dlp_toggler.png",
+		show_with = "protection_bypass",
+		tooltipe = "Toggle DelProtect",
+		action = function(player)
+			local pname = player:get_player_name()
+			local privs = minetest.get_player_privs(pname)
+			if privs["delprotect"] then
+				privs["delprotect"] = nil
+				minetest.chat_send_player(pname, "DelProtect deactivated")
+			else
+				privs["delprotect"] = true
+				minetest.chat_send_player(pname, "DelProtect activated")
+			end
+			minetest.set_player_privs(pname, privs)
+		end,
+	})
+end
+
 print ("[MOD] Protector Redo loaded")
