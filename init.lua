@@ -571,20 +571,20 @@ dofile(minetest.get_modpath("protector") .. "/admin.lua")
 -- Requires Unified Inventory to be loaded
 
 if minetest.get_modpath("unified_inventory") then
-	unified_inventory.register_button("delprotect", {
+	unified_inventory.register_button("protection_bypass_toggle", {
 		type = "image",
-		image = "protector_dlp_toggler.png",
-		show_with = "protection_bypass",
-		tooltipe = "Toggle DelProtect",
+		image = "protector_bypass_toggler.png",
+		show_with = "delprotect",
+		tooltipe = "Toggle Protection Bypass",
 		action = function(player)
 			local pname = player:get_player_name()
 			local privs = minetest.get_player_privs(pname)
-			if privs["delprotect"] then
-				privs["delprotect"] = nil
-				minetest.chat_send_player(pname, "DelProtect deactivated")
+			if privs["protection_bypass"] then
+				privs["protection_bypass"] = nil
+				minetest.chat_send_player(pname, "Protection Bypass deactivated")
 			else
-				privs["delprotect"] = true
-				minetest.chat_send_player(pname, "DelProtect activated")
+				privs["protection_bypass"] = true
+				minetest.chat_send_player(pname, "Protection Bypass activated")
 			end
 			minetest.set_player_privs(pname, privs)
 		end,
