@@ -1,5 +1,6 @@
 
 minetest.register_privilege("delprotect","Ignore player protection")
+minetest.register_privilege("toggle","Grant/Remove delprotect and protection_bypass privs")
 
 protector = {}
 protector.mod = "redo"
@@ -574,16 +575,18 @@ if minetest.get_modpath("unified_inventory") then
 	unified_inventory.register_button("protection_bypass_toggle", {
 		type = "image",
 		image = "protector_bypass_toggler.png",
-		show_with = "delprotect",
+		show_with = "toggle",
 		tooltip = "Toggle Protection Bypass",
 		action = function(player)
 			local pname = player:get_player_name()
 			local privs = minetest.get_player_privs(pname)
-			if privs["protection_bypass"] then
+			if privs["protection_bypass"] or privs["delprotect"] then
 				privs["protection_bypass"] = nil
+				privs["delprotect"] = nil
 				minetest.chat_send_player(pname, "Protection Bypass deactivated")
 			else
 				privs["protection_bypass"] = true
+				privs["delprotect"] = true
 				minetest.chat_send_player(pname, "Protection Bypass activated")
 			end
 			minetest.set_player_privs(pname, privs)
