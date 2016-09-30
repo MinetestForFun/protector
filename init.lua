@@ -575,7 +575,7 @@ if minetest.get_modpath("unified_inventory") then
 		type = "image",
 		image = "protector_bypass_toggler.png",
 		show_with = "delprotect",
-		tooltipe = "Toggle Protection Bypass",
+		tooltip = "Toggle Protection Bypass",
 		action = function(player)
 			local pname = player:get_player_name()
 			local privs = minetest.get_player_privs(pname)
